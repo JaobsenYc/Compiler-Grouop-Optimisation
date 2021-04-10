@@ -31,19 +31,17 @@ public class ConstantFolder
 			e.printStackTrace();
 		}
 	}
-	
+
 	public void optimize()
 	{
 		ClassGen cgen = new ClassGen(original);
 		ConstantPoolGen cpgen = cgen.getConstantPool();
-
-		// Implement your optimization here
+		cgen.setMajor(50);
 		Method[] methods = cgen.getMethods();
 		for (Method method : methods) {
 			optimizeMethod(cgen, cpgen, method);
 		}
-
-		this.optimized = gen.getJavaClass();
+		this.optimized = cgen.getJavaClass();
 	}
 
 	private void optimizeMethod(ClassGen cgen, ConstantPoolGen cpgen, Method method) {
@@ -54,7 +52,6 @@ public class ConstantFolder
 
 		Method newM = mgen.getMethod();
 		cgen.replaceMethod(method, newM);
-
 	}
 
 	private void simpleFolding(ClassGen cgen, ConstantPoolGen cpgen, Method method, InstructionList instList) {
@@ -79,7 +76,7 @@ public class ConstantFolder
 				Type numType = operator.getType(cpgen);
 				String opType = operator.getName().substring(1);
 
-				Number foldedValue = doOperation(Num1, Num2, numType, opType);
+				Number foldedValue = operation(Num1, Num2, numType, opType);
 				if (foldedValue != null) {
 					int constantPoolIndex = getCpIndex(numType, foldedValue, cpgen);
 					if (constantPoolIndex != -1) {
@@ -119,11 +116,14 @@ public class ConstantFolder
 		int constantPoolIndex = -1;
 		if (numType == Type.INT) {
 			constantPoolIndex = cpgen.addInteger(foldedValue.intValue());
-		} else if (numType == Type.FLOAT) {
-			constantPoolIndex = cpgen.addFloat(foldedValue.floatValue());
-		} else if (numType == Type.LONG) {
+		}
+		if (numType == Type.LONG) {
 			constantPoolIndex = cpgen.addLong(foldedValue.longValue());
-		} else if (numType == Type.DOUBLE) {
+		}
+		if (numType == Type.FLOAT) {
+			constantPoolIndex = cpgen.addFloat(foldedValue.floatValue());
+		}
+		if (numType == Type.DOUBLE) {
 			constantPoolIndex = cpgen.addDouble(foldedValue.doubleValue());
 		}
 		return constantPoolIndex;
@@ -153,7 +153,7 @@ public class ConstantFolder
 		}
 	}
 
-	private Number doOperation(Number Num1, Number Num2, Type numType, String opType) {
+	private Number operation(Number Num1, Number Num2, Type numType, String opType) {
 		Number result = null;
 		switch (opType) {
 			case "add":
@@ -176,11 +176,14 @@ public class ConstantFolder
 		Number result = null;
 		if (numType == Type.INT) {
 			result = Num1.intValue() + Num2.intValue();
-		} else if (numType == Type.LONG) {
+		}
+		if (numType == Type.LONG) {
 			result = Num1.longValue() + Num2.longValue();
-		} else if (numType == Type.FLOAT) {
+		}
+		if (numType == Type.FLOAT) {
 			result = Num1.floatValue() + Num2.floatValue();
-		} else if (numType == Type.DOUBLE) {
+		}
+		if (numType == Type.DOUBLE) {
 			result = Num1.doubleValue() + Num2.doubleValue();
 		}
 		return result;
@@ -190,11 +193,14 @@ public class ConstantFolder
 		Number result = null;
 		if (numType == Type.INT) {
 			result = Num1.intValue() - Num2.intValue();
-		} else if (numType == Type.LONG) {
+		}
+		if (numType == Type.LONG) {
 			result = Num1.longValue() - Num2.longValue();
-		} else if (numType == Type.FLOAT) {
+		}
+		if (numType == Type.FLOAT) {
 			result = Num1.floatValue() - Num2.floatValue();
-		} else if (numType == Type.DOUBLE) {
+		}
+		if (numType == Type.DOUBLE) {
 			result = Num1.doubleValue() - Num2.doubleValue();
 		}
 		return result;
@@ -204,11 +210,14 @@ public class ConstantFolder
 		Number result = null;
 		if (numType == Type.INT) {
 			result = Num1.intValue() * Num2.intValue();
-		} else if (numType == Type.LONG) {
+		}
+		if (numType == Type.LONG) {
 			result = Num1.longValue() * Num2.longValue();
-		} else if (numType == Type.FLOAT) {
+		}
+		if (numType == Type.FLOAT) {
 			result = Num1.floatValue() * Num2.floatValue();
-		} else if (numType == Type.DOUBLE) {
+		}
+		if (numType == Type.DOUBLE) {
 			result = Num1.doubleValue() * Num2.doubleValue();
 		}
 		return result;
@@ -218,25 +227,17 @@ public class ConstantFolder
 		Number result = null;
 		if (numType == Type.INT) {
 			result = Num1.intValue() / Num2.intValue();
-		} else if (numType == Type.LONG) {
+		}
+		if (numType == Type.LONG) {
 			result = Num1.longValue() / Num2.longValue();
-		} else if (numType == Type.FLOAT) {
+		}
+		if (numType == Type.FLOAT) {
 			result = Num1.floatValue() / Num2.floatValue();
-		} else if (numType == Type.DOUBLE) {
+		}
+		if (numType == Type.DOUBLE) {
 			result = Num1.doubleValue() / Num2.doubleValue();
 		}
 		return result;
-	}
-
-	public void printInstructions() {
-		ClassGen cgen = new ClassGen(original);
-		ConstantPoolGen cpgen = cgen.getConstantPool();
-		Method[] methods = cgen.getMethods();
-		for (Method method : methods) {
-			MethodGen mgen = new MethodGen(method, cgen.getClassName(), cpgen);
-			System.out.println(cgen.getClassName() + " > " + method.getName());
-			System.out.println(mgen.getInstructionList());
-		}
 	}
 
 	public void write(String optimisedFilePath)
