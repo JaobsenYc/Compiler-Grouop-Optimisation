@@ -50,7 +50,7 @@ public class ConstantFolder
 		InstructionList instList = mgen.getInstructionList();
 
 		simpleFolding(cgen, cpgen, method, instList);
-		
+
 		Method newM = mgen.getMethod();
 		cgen.replaceMethod(method, newM);
 
@@ -60,10 +60,11 @@ public class ConstantFolder
 		System.out.println("Performing Simple Folding On > " + cgen.getClassName() + " > " + method.getName());
 		boolean optimised = true;
 		while (optimised){
-			InstructionFinder finder = new InstructionFinder(instList);
-			String regex = "(LDC|LDC2_W|ConstantPushInstruction) (LDC|LDC2_W|ConstantPushInstruction) ArithmeticInstruction";
 			optimised = false;
-			for (Iterator iterator = finder.search(regex); iterator.hasNext();) {
+			String regex = "(LDC|LDC2_W) (LDC|LDC2_W) ArithmeticInstruction";
+			InstructionFinder finder = new InstructionFinder(instList);
+			Iterator iterator = finder.search(regex);
+			while (iterator.hasNext()) {
 				InstructionHandle[] instructions = (InstructionHandle[]) iterator.next();
 				int instNum = 0;
 
@@ -97,9 +98,7 @@ public class ConstantFolder
 
 	private Number getNum(int instNum, ConstantPoolGen cpgen, InstructionHandle[] instructions) {
 		Number Num = null;
-		if (instructions[instNum].getInstruction() instanceof ConstantPushInstruction) {
-			Num = ((ConstantPushInstruction) instructions[instNum].getInstruction()).getValue();
-		} else if (instructions[instNum].getInstruction() instanceof LDC) {
+		if (instructions[instNum].getInstruction() instanceof LDC) {
 			Num = (Number) ((LDC) instructions[instNum].getInstruction()).getValue(cpgen);
 		} else if (instructions[instNum].getInstruction() instanceof LDC2_W) {
 			Num = ((LDC2_W) instructions[instNum].getInstruction()).getValue(cpgen);
