@@ -59,10 +59,10 @@ public class ConstantFolder
 		boolean optimised = true;
 		while (optimised){
 			optimised = false;
-			String regex = "(LDC|LDC2_W) (LDC|LDC2_W) ArithmeticInstruction";
+			String regex = "(LDC|LDC2_W|ConstantPushInstruction) (LDC|LDC2_W|ConstantPushInstruction) ArithmeticInstruction";
 			InstructionFinder finder = new InstructionFinder(instList);
 			Iterator iterator = finder.search(regex);
-			while (iterator.hasNext()) {
+			while (iterator.hasNext()) {//...}
 				InstructionHandle[] instructions = (InstructionHandle[]) iterator.next();
 				int instNum = 0;
 
@@ -72,13 +72,13 @@ public class ConstantFolder
 				Number Num2 = getNum(instNum, cpgen, instructions);
 				instNum += 1;
 
-				ArithmeticInstruction operator = getOperator(instNum, instructions);
-				Type numType = operator.getType(cpgen);
-				String opType = operator.getName().substring(1);
+				ArithmeticInstruction operation = getOperation(instNum, instructions);
+				Type numType = operation.getType(cpgen);
+				String opType = operation.getName().substring(1);
 
-				Number foldedValue = operation(Num1, Num2, numType, opType);
+				Number foldedValue = doOperation(Num1, Num2, numType, opType);
 				if (foldedValue != null) {
-					int constantPoolIndex = getCpIndex(numType, foldedValue, cpgen);
+					int constantPoolIndex = addToConstantPool(numType, foldedValue, cpgen);
 					if (constantPoolIndex != -1) {
 						System.out.println("Simple Folding Success!");
 						System.out.println("Before: ");
@@ -98,21 +98,25 @@ public class ConstantFolder
 		Number Num = null;
 		if (instructions[instNum].getInstruction() instanceof LDC) {
 			Num = (Number) ((LDC) instructions[instNum].getInstruction()).getValue(cpgen);
-		} else if (instructions[instNum].getInstruction() instanceof LDC2_W) {
+		}
+		if (instructions[instNum].getInstruction() instanceof LDC2_W) {
 			Num = ((LDC2_W) instructions[instNum].getInstruction()).getValue(cpgen);
+		}
+		if (instructions[instNum].getInstruction() instanceof ConstantPushInstruction) {
+			Num = ((ConstantPushInstruction) instructions[instNum].getInstruction()).getValue();
 		}
 		return Num;
 	}
 
-	private ArithmeticInstruction getOperator(int instNum, InstructionHandle[] instructions) {
-		ArithmeticInstruction operator = null;
+	private ArithmeticInstruction getOperation(int instNum, InstructionHandle[] instructions) {
+		ArithmeticInstruction operation = null;
 		if (instructions[instNum].getInstruction() instanceof ArithmeticInstruction) {
-			operator = (ArithmeticInstruction) instructions[instNum].getInstruction();
+			operation = (ArithmeticInstruction) instructions[instNum].getInstruction();
 		}
-		return operator;
+		return operation;
 	}
 
-	private int getCpIndex(Type numType, Number foldedValue, ConstantPoolGen cpgen) {
+	private int addToConstantPool(Type numType, Number foldedValue, ConstantPoolGen cpgen) {
 		int constantPoolIndex = -1;
 		if (numType == Type.INT) {
 			constantPoolIndex = cpgen.addInteger(foldedValue.intValue());
@@ -153,7 +157,7 @@ public class ConstantFolder
 		}
 	}
 
-	private Number operation(Number Num1, Number Num2, Type numType, String opType) {
+	private Number doOperation(Number Num1, Number Num2, Type numType, String opType) {
 		Number result = null;
 		switch (opType) {
 			case "add":
