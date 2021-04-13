@@ -243,7 +243,7 @@ public class ConstantFolder
 
 
 
-	private void resolveComparison(ClassGen cgen, ConstantPoolGen cpgen, InstructionList il){
+	private void resolveBinaryComparisonForInt(ClassGen cgen, ConstantPoolGen cpgen, InstructionList il){
 		System.out.println("*** Optimization: resolve binary comaprison ***");
 
 		InstructionFinder finder = new InstructionFinder(il);
@@ -330,6 +330,116 @@ public class ConstantFolder
 			}
 		}
 	}
+
+	private void resolveBinaryComparisonForLong(ClassGen cgen, ConstantPoolGen cpgen, InstructionList il){
+		System.out.println("* * Optimization: resolve binary comaprison for long --------------");
+
+		InstructionFinder finder = new InstructionFinder(il);
+		Iterator itr = finder.search("PushInstruction PushInstruction LCMP IfInstruction");
+		boolean performedOptimization = false;
+		while (itr.hasNext()) {
+			InstructionHandle[] match = (InstructionHandle[]) itr.next();
+
+			// match[0] is a PushInstruction (expect an LDC)
+			PushInstruction pushInstructionOne = (PushInstruction) match[0].getInstruction();
+			Object valueA = null;
+			Type typeA = null;
+
+			if (pushInstructionOne instanceof LDC) {
+				LDC constantLoadInstruction = (LDC) pushInstructionOne;
+				valueA = constantLoadInstruction.getValue(cpgen);
+				typeA = constantLoadInstruction.getType(cpgen);
+			} else if (pushInstructionOne instanceof LDC2_W) {
+				LDC2_W constantLoadInstruction = (LDC2_W) pushInstructionOne;
+				valueA = constantLoadInstruction.getValue(cpgen);
+				typeA = constantLoadInstruction.getType(cpgen);
+			}
+
+			if (typeA != Type.LONG) {
+				break;
+			}
+
+			Long valueOne = (Long) valueA;
+
+			System.out.println("PushInstruction 1 value: " + valueOne);
+
+
+			// match[1] is a PushInstruction (expect an LDC)
+			PushInstruction pushInstructionTwo = (PushInstruction) match[1].getInstruction();
+			Object valueB = null;
+			Type typeB = null;
+
+			if (pushInstructionTwo instanceof LDC) {
+				LDC constantLoadInstruction = (LDC) pushInstructionTwo;
+				valueB = constantLoadInstruction.getValue(cpgen);
+				typeB = constantLoadInstruction.getType(cpgen);
+			} else if (pushInstructionTwo instanceof LDC2_W) {
+				LDC2_W constantLoadInstruction = (LDC2_W) pushInstructionTwo;
+				valueB = constantLoadInstruction.getValue(cpgen);
+				typeB = constantLoadInstruction.getType(cpgen);
+			}
+
+
+			if (typeB != Type.LONG) {
+				break;
+			}
+
+			Long valueTwo = (Long) valueB;
+			System.out.println("PushInstruction 2 value: " + valueTwo);
+
+			if (valueOne == null || valueTwo == null){
+				continue;
+			}
+
+			// match[3] is an IfInstruction (expect an LDC)
+			IfInstruction ifInstruction = (IfInstruction) (match[3].getInstruction());
+
+			boolean branch = false;
+			boolean canHandle = true;
+
+
+			if (ifInstruction instanceof IF_ICMPEQ) {
+				branch = valueOne.equals(valueTwo);
+			} else if (ifInstruction instanceof IF_ICMPNE) {
+				branch = !valueOne.equals(valueTwo);
+			} else if (ifInstruction instanceof IF_ICMPLT) {
+				branch = valueOne.compareTo(valueTwo) < 0;
+			} else if (ifInstruction instanceof IF_ICMPLE) {
+				branch = valueOne.compareTo(valueTwo) <= 0;
+			} else if (ifInstruction instanceof IFLE ) {
+				branch = valueOne.compareTo(valueTwo) <= 0;
+			} else if (ifInstruction instanceof IF_ICMPGT) {
+				branch = valueOne.compareTo(valueTwo) > 0;
+			} else if (ifInstruction instanceof IF_ICMPGE) {
+				branch = valueOne.compareTo(valueTwo) >= 0;
+			} else {
+				canHandle = false;
+			}
+
+
+			if(canHandle) {
+				performedOptimization = true;
+				if (branch) {
+					match[3].setInstruction(new GOTO(ifInstruction.getTarget()));
+					il.redirectBranches(match[0], match[3]);
+					System.out.println("Binary folding for long complete");
+					try {
+						il.delete(match[0], match[1]);
+					} catch (TargetLostException e) {
+					}
+				} else {
+					// if branch is false
+					il.redirectBranches(match[0], match[3].getNext());
+					try {
+						il.delete(match[0], match[1]);
+						il.delete(match[2], match[3]);
+					} catch (TargetLostException e) {
+					}
+				}
+			}
+		}
+	}
+
 
 
 	private void findConstantVariables(HashMap constantVariables, Iterator it){
@@ -494,7 +604,8 @@ public class ConstantFolder
 			// 1. Run simple folding to get as many literals as possible. Addtional optimisation on goto statements.
 			simpleFolding(cgen, cpgen, method, il);
 			System.out.println("***Done simple folding***");
-			resolveComparison(cgen, cpgen, il);
+			resolveBinaryComparisonForInt(cgen, cpgen, il);
+			resolveBinaryComparisonForLong(cgen, cpgen, il);
 
 			// 2. Store all literals in the hashmap.
 			finder = new InstructionFinder(il);
