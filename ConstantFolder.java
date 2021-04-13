@@ -632,11 +632,49 @@ public class ConstantFolder
 		System.out.println("*** Completed constant variable folding ***");
 	}
 
+
+	private void replaceBipushAndSipush(ClassGen cgen, ConstantPoolGen cpgen, InstructionList il) {
+		System.out.println("***Replacing BIPUSH and SIPUSH");
+
+		InstructionFinder finder = new InstructionFinder(il);
+		Iterator itr = finder.search("PushInstruction");
+		InstructionHandle newInst = null;
+
+		while (itr.hasNext()) {
+			InstructionHandle[] match = (InstructionHandle[]) itr.next();
+			PushInstruction pushInstruction = (PushInstruction) match[0].getInstruction();
+
+			if (pushInstruction instanceof BIPUSH || pushInstruction instanceof SIPUSH) {
+				System.out.println("Entered BIPUSH SIPUSH");
+				Number literalValue = null;
+				if(pushInstruction instanceof BIPUSH) {
+					literalValue = (Number) ((BIPUSH) match[0].getInstruction()).getValue();
+				}else{
+					literalValue = (Number) ((SIPUSH) match[0].getInstruction()).getValue();
+				}
+				Instruction instructionAdded = new LDC(cpgen.addInteger(literalValue.intValue()));
+				newInst = il.insert(match[0], instructionAdded );
+				try {
+					// Delete old load instructons
+					il.delete(match[0]);
+				} catch (TargetLostException e) {
+					for (InstructionHandle target : e.getTargets()) {
+						for (InstructionTargeter targeter : target.getTargeters()) {
+							targeter.updateTarget(target, newInst);
+						}
+					}
+				}
+			}
+
+		}
+	}
+
 	private void optimizeMethod(ClassGen cgen, ConstantPoolGen cpgen, Method method) {
 		MethodGen mgen = new MethodGen(method, cgen.getClassName(), cpgen);
 		InstructionList instList = mgen.getInstructionList();
 
 		constantVariableFolding(cgen, cpgen, method, instList);
+		replaceBipushAndSipush(cgen, cpgen, instList);
 		System.out.println(cgen.getClassName() + " > " + method.getName());
 		System.out.println(instList);
 		System.out.println("");
