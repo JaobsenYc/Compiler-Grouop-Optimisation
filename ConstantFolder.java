@@ -59,7 +59,7 @@ public class ConstantFolder
 		boolean optimised = true;
 		while (optimised){
 			optimised = false;
-			String regex = "(LDC|LDC2_W|ConstantPushInstruction) (LDC|LDC2_W|ConstantPushInstruction) ArithmeticInstruction";
+			String regex = "(LDC|LDC2_W|ConstantPushInstruction) ConversionInstruction? (LDC|LDC2_W|ConstantPushInstruction) ConversionInstruction? ArithmeticInstruction";
 			InstructionFinder finder = new InstructionFinder(instList);
 			Iterator iterator = finder.search(regex);
 			while (iterator.hasNext()) {//...}
@@ -69,8 +69,18 @@ public class ConstantFolder
 				Number Num1 = getNum(instNum, cpgen, instructions);
 				instNum += 1;
 
+				ConversionInstruction conversion1 = getConversion(instNum, instructions);
+				if (conversion1 != null) {
+					instNum += 1;
+				}
+
 				Number Num2 = getNum(instNum, cpgen, instructions);
 				instNum += 1;
+
+				ConversionInstruction conversion2 = getConversion(instNum, instructions);
+				if (conversion2 != null) {
+					instNum += 1;
+				}
 
 				ArithmeticInstruction operation = getOperation(instNum, instructions);
 				Type numType = operation.getType(cpgen);
@@ -106,6 +116,14 @@ public class ConstantFolder
 			Num = ((ConstantPushInstruction) instructions[instNum].getInstruction()).getValue();
 		}
 		return Num;
+	}
+
+	private ConversionInstruction getConversion(int instNum, InstructionHandle[] instructions) {
+		ConversionInstruction conversion = null;
+		if (instructions[instNum].getInstruction() instanceof ConversionInstruction) {
+			conversion = (ConversionInstruction) instructions[instNum].getInstruction();
+		}
+		return conversion;
 	}
 
 	private ArithmeticInstruction getOperation(int instNum, InstructionHandle[] instructions) {
